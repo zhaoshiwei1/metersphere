@@ -4,24 +4,20 @@ import com.alibaba.fastjson.annotation.JSONField;
 import com.alibaba.fastjson.annotation.JSONType;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import io.metersphere.api.dto.scenario.KeyValue;
-import io.metersphere.api.dto.scenario.assertions.Assertions;
-import io.metersphere.api.dto.scenario.extract.Extract;
-import io.metersphere.api.dto.scenario.processor.BeanShellPostProcessor;
-import io.metersphere.api.dto.scenario.processor.BeanShellPreProcessor;
 import io.metersphere.api.dto.scenario.request.dubbo.ConfigCenter;
 import io.metersphere.api.dto.scenario.request.dubbo.ConsumerAndService;
 import io.metersphere.api.dto.scenario.request.dubbo.RegistryCenter;
 import lombok.Data;
+import lombok.EqualsAndHashCode;
 
 import java.util.List;
 
 @Data
+@EqualsAndHashCode(callSuper = true)
 @JSONType(typeName = RequestType.DUBBO)
-public class DubboRequest implements Request {
+public class DubboRequest extends Request {
     // type 必须放最前面，以便能够转换正确的类
     private String type = RequestType.DUBBO;
-    @JSONField(ordinal = 1)
-    private String name;
     @JSONField(ordinal = 2)
     private String protocol;
     @JsonProperty(value = "interface")
@@ -41,14 +37,4 @@ public class DubboRequest implements Request {
     private List<KeyValue> args;
     @JSONField(ordinal = 9)
     private List<KeyValue> attachmentArgs;
-    @JSONField(ordinal = 10)
-    private Assertions assertions;
-    @JSONField(ordinal = 11)
-    private Extract extract;
-    @JSONField(ordinal = 12)
-    private BeanShellPreProcessor beanShellPreProcessor;
-    @JSONField(ordinal = 13)
-    private BeanShellPostProcessor beanShellPostProcessor;
-    @JSONField(ordinal = 14)
-    private Boolean enable;
 }

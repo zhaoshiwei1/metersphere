@@ -9,7 +9,7 @@
                       maxlength="30" show-word-limit
             >
               <template v-slot:prepend>
-                <el-select :disabled="isReadOnly" v-model="testPlan.projectId"
+                <el-select filterable v-model="testPlan.projectId"
                            :placeholder="$t('load_test.select_project')">
                   <el-option
                     v-for="item in projects"
@@ -30,7 +30,7 @@
             </el-button>
 
             <ms-schedule-config :schedule="testPlan.schedule" :save="saveCronExpression" @scheduleChange="saveSchedule"
-                                :check-open="checkScheduleEdit" :custom-validate="durationValidate"/>
+                                :check-open="checkScheduleEdit" :test-id="testId" :custom-validate="durationValidate"/>
           </el-col>
         </el-row>
 
@@ -58,7 +58,7 @@ import PerformancePressureConfig from "./components/PerformancePressureConfig";
 import PerformanceAdvancedConfig from "./components/PerformanceAdvancedConfig";
 import MsContainer from "../../common/components/MsContainer";
 import MsMainContainer from "../../common/components/MsMainContainer";
-import {checkoutTestManagerOrTestUser} from "../../../../common/js/utils";
+import {checkoutTestManagerOrTestUser} from "@/common/js/utils";
 import MsScheduleConfig from "../../common/components/MsScheduleConfig";
 import {LIST_CHANGE, PerformanceEvent} from "@/business/components/common/head/ListEvent";
 
@@ -125,6 +125,8 @@ export default {
       this.isReadOnly = true;
     }
     this.getTest(this.$route.params.testId);
+  },
+  activated() {
     this.listProjects();
   },
   mounted() {

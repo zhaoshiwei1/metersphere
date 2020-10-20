@@ -4,11 +4,9 @@ package io.metersphere.track.service;
 import com.alibaba.fastjson.JSONArray;
 import com.alibaba.fastjson.JSONObject;
 import io.metersphere.base.domain.*;
-import io.metersphere.base.mapper.TestCaseMapper;
-import io.metersphere.base.mapper.TestCaseReportMapper;
-import io.metersphere.base.mapper.TestPlanMapper;
-import io.metersphere.base.mapper.TestPlanTestCaseMapper;
+import io.metersphere.base.mapper.*;
 import io.metersphere.base.mapper.ext.ExtProjectMapper;
+import io.metersphere.base.mapper.ext.ExtTestCaseMapper;
 import io.metersphere.base.mapper.ext.ExtTestPlanMapper;
 import io.metersphere.base.mapper.ext.ExtTestPlanTestCaseMapper;
 import io.metersphere.commons.constants.TestPlanStatus;
@@ -27,7 +25,9 @@ import io.metersphere.track.dto.TestPlanCaseDTO;
 import io.metersphere.track.dto.TestPlanDTO;
 import io.metersphere.track.dto.TestPlanDTOWithMetric;
 import io.metersphere.track.request.testcase.PlanCaseRelevanceRequest;
+import io.metersphere.track.request.testcase.QueryTestCaseRequest;
 import io.metersphere.track.request.testcase.QueryTestPlanRequest;
+import io.metersphere.track.request.testplan.AddTestPlanRequest;
 import io.metersphere.track.request.testplancase.QueryTestPlanCaseRequest;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.ibatis.session.ExecutorType;
@@ -36,8 +36,10 @@ import org.apache.ibatis.session.SqlSessionFactory;
 import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.CollectionUtils;
 
 import javax.annotation.Resource;
+
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -72,12 +74,31 @@ public class TestPlanService {
     @Resource
     TestCaseReportMapper testCaseReportMapper;
 
-    public void addTestPlan(TestPlan testPlan) {
+    @Resource
+    TestPlanProjectMapper testPlanProjectMapper;
+    @Resource
+    TestPlanProjectService testPlanProjectService;
+    @Resource
+    ProjectMapper projectMapper;
+    @Resource
+    ExtTestCaseMapper extTestCaseMapper;
+
+    public void addTestPlan(AddTestPlanRequest testPlan) {
         if (getTestPlanByName(testPlan.getName()).size() > 0) {
             MSException.throwException(Translator.get("plan_name_already_exists"));
         }
-        ;
-        testPlan.setId(UUID.randomUUID().toString());
+
+        String testPlanId = UUID.randomUUID().toString();
+
+        List<String> projectIds = testPlan.getProjectIds();
+        projectIds.forEach(id -> {
+            TestPlanProject testPlanProject = new TestPlanProject();
+            testPlanProject.setProjectId(id);
+            testPlanProject.setTestPlanId(testPlanId);
+            testPlanProjectMapper.insertSelective(testPlanProject);
+        });
+
+        testPlan.setId(testPlanId);
         testPlan.setStatus(TestPlanStatus.Prepare.name());
         testPlan.setCreateTime(System.currentTimeMillis());
         testPlan.setUpdateTime(System.currentTimeMillis());
@@ -95,10 +116,57 @@ public class TestPlanService {
         return Optional.ofNullable(testPlanMapper.selectByPrimaryKey(testPlanId)).orElse(new TestPlan());
     }
 
-    public int editTestPlan(TestPlan testPlan) {
+    public int editTestPlan(TestPlanDTO testPlan) {
+        editTestPlanProject(testPlan);
         testPlan.setUpdateTime(System.currentTimeMillis());
         checkTestPlanExist(testPlan);
+        //进行中状态，写入实际开始时间
+        if (TestPlanStatus.Underway.name().equals(testPlan.getStatus())) {
+            testPlan.setActualStartTime(System.currentTimeMillis());
+
+        } else if (TestPlanStatus.Completed.name().equals(testPlan.getStatus())) {
+            //已完成，写入实际完成时间
+            testPlan.setActualEndTime(System.currentTimeMillis());
+        }
         return testPlanMapper.updateByPrimaryKeySelective(testPlan);
+    }
+
+    private void editTestPlanProject(TestPlanDTO testPlan) {
+        List<String> projectIds = testPlan.getProjectIds();
+        if (!CollectionUtils.isEmpty(projectIds)) {
+            TestPlanProjectExample testPlanProjectExample1 = new TestPlanProjectExample();
+            testPlanProjectExample1.createCriteria().andTestPlanIdEqualTo(testPlan.getId());
+            List<TestPlanProject> testPlanProjects = testPlanProjectMapper.selectByExample(testPlanProjectExample1);
+            // 已经关联的项目idList
+            List<String> dbProjectIds = testPlanProjects.stream().map(TestPlanProject::getProjectId).collect(Collectors.toList());
+            // 修改后传过来的项目idList，如果还未关联，进行关联
+            projectIds.forEach(projectId -> {
+                if (!dbProjectIds.contains(projectId)) {
+                    TestPlanProject testPlanProject = new TestPlanProject();
+                    testPlanProject.setTestPlanId(testPlan.getId());
+                    testPlanProject.setProjectId(projectId);
+                    testPlanProjectMapper.insert(testPlanProject);
+                }
+            });
+
+            TestPlanProjectExample testPlanProjectExample = new TestPlanProjectExample();
+            testPlanProjectExample.createCriteria().andTestPlanIdEqualTo(testPlan.getId()).andProjectIdNotIn(projectIds);
+            testPlanProjectMapper.deleteByExample(testPlanProjectExample);
+
+            // 关联的项目下的用例idList
+            TestCaseExample example = new TestCaseExample();
+            example.createCriteria().andProjectIdIn(projectIds);
+            List<TestCase> caseList = testCaseMapper.selectByExample(example);
+            List<String> caseIds = caseList.stream().map(TestCase::getId).collect(Collectors.toList());
+
+            // 取消关联所属项目下的用例和计划的关系
+            TestPlanTestCaseExample testPlanTestCaseExample = new TestPlanTestCaseExample();
+            TestPlanTestCaseExample.Criteria criteria = testPlanTestCaseExample.createCriteria().andPlanIdEqualTo(testPlan.getId());
+            if (!CollectionUtils.isEmpty(caseIds)) {
+                criteria.andCaseIdNotIn(caseIds);
+            }
+            testPlanTestCaseMapper.deleteByExample(testPlanTestCaseExample);
+        }
     }
 
     private void checkTestPlanExist(TestPlan testPlan) {
@@ -116,6 +184,7 @@ public class TestPlanService {
 
     public int deleteTestPlan(String planId) {
         deleteTestCaseByPlanId(planId);
+        testPlanProjectService.deleteTestPlanProjectByPlanId(planId);
         return testPlanMapper.deleteByPrimaryKey(planId);
     }
 
@@ -130,6 +199,10 @@ public class TestPlanService {
         return extTestPlanMapper.list(request);
     }
 
+    public List<TestPlanDTO> listTestPlanByProject(QueryTestPlanRequest request) {
+        return extTestPlanMapper.planList(request);
+    }
+
     public void testPlanRelevance(PlanCaseRelevanceRequest request) {
 
         List<String> testCaseIds = request.getTestCaseIds();
@@ -138,6 +211,13 @@ public class TestPlanService {
             return;
         }
 
+        // 如果是关联全部指令则根据条件查询未关联的案例
+        if (testCaseIds.get(0).equals("all")) {
+            List<TestCase> testCases = extTestCaseMapper.getTestCaseByNotInPlan(request.getRequest());
+            if (!testCases.isEmpty()) {
+                testCaseIds = testCases.stream().map(testCase -> testCase.getId()).collect(Collectors.toList());
+            }
+        }
         TestCaseExample testCaseExample = new TestCaseExample();
         testCaseExample.createCriteria().andIdIn(testCaseIds);
 
@@ -180,7 +260,8 @@ public class TestPlanService {
             return null;
         }
         TestPlanExample testPlanTestCaseExample = new TestPlanExample();
-        testPlanTestCaseExample.createCriteria().andWorkspaceIdEqualTo(currentWorkspaceId);
+        testPlanTestCaseExample.createCriteria().andWorkspaceIdEqualTo(currentWorkspaceId)
+                .andPrincipalEqualTo(SessionUtils.getUserId());
         testPlanTestCaseExample.setOrderByClause("update_time desc");
         return testPlanMapper.selectByExample(testPlanTestCaseExample);
     }
@@ -257,6 +338,9 @@ public class TestPlanService {
         queryTestPlanRequest.setId(planId);
 
         TestPlanDTO testPlan = extTestPlanMapper.list(queryTestPlanRequest).get(0);
+        String projectName = getProjectNameByPlanId(planId);
+        testPlan.setProjectName(projectName);
+
         TestCaseReport testCaseReport = testCaseReportMapper.selectByPrimaryKey(testPlan.getReportId());
         JSONObject content = JSONObject.parseObject(testCaseReport.getContent());
         JSONArray componentIds = content.getJSONArray("components");
@@ -270,6 +354,7 @@ public class TestPlanService {
             if (issue.size() > 0) {
                 for (Issues i : issue) {
                     i.setModel(testCase.getNodePath());
+                    i.setProjectName(testCase.getProjectName());
                     String des = i.getDescription().replaceAll("<p>", "").replaceAll("</p>", "");
                     i.setDescription(des);
                     if (i.getLastmodify() == null || i.getLastmodify() == "") {
@@ -315,5 +400,24 @@ public class TestPlanService {
         }
         testPlan.setStatus(TestPlanStatus.Completed.name());
         testPlanMapper.updateByPrimaryKeySelective(testPlan);
+    }
+
+    public String getProjectNameByPlanId(String testPlanId) {
+        List<String> projectIds = testPlanProjectService.getProjectIdsByPlanId(testPlanId);
+        ProjectExample projectExample = new ProjectExample();
+        projectExample.createCriteria().andIdIn(projectIds);
+
+        List<Project> projects = projectMapper.selectByExample(projectExample);
+        StringBuilder stringBuilder = new StringBuilder();
+        String projectName = "";
+
+        if (projects.size() > 0) {
+            for (Project project : projects) {
+                stringBuilder.append(project.getName()).append("、");
+            }
+            projectName = stringBuilder.toString().substring(0, stringBuilder.length() - 1);
+        }
+
+        return projectName;
     }
 }

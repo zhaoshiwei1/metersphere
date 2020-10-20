@@ -5,8 +5,13 @@ import io.metersphere.api.service.APITestService;
 import io.metersphere.base.domain.ApiTestReport;
 import io.metersphere.commons.constants.APITestStatus;
 import io.metersphere.commons.constants.ApiRunMode;
+import io.metersphere.commons.constants.TestPlanTestCaseStatus;
 import io.metersphere.commons.utils.CommonBeanFactory;
 import io.metersphere.commons.utils.LogUtil;
+import io.metersphere.notice.domain.NoticeDetail;
+import io.metersphere.notice.service.MailService;
+import io.metersphere.notice.service.NoticeService;
+import io.metersphere.track.service.TestPlanTestCaseService;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.jmeter.assertions.AssertionResult;
 import org.apache.jmeter.samplers.SampleResult;
@@ -68,7 +73,6 @@ public class APIBackendListenerClient extends AbstractBackendListenerClient impl
 
         // 一个脚本里可能包含多个场景(ThreadGroup)，所以要区分开，key: 场景Id
         final Map<String, ScenarioResult> scenarios = new LinkedHashMap<>();
-
         queue.forEach(result -> {
             // 线程名称: <场景名> <场景Index>-<请求Index>, 例如：Scenario 2-1
             String scenarioName = StringUtils.substringBeforeLast(result.getThreadName(), THREAD_SPLIT);
@@ -113,9 +117,32 @@ public class APIBackendListenerClient extends AbstractBackendListenerClient impl
             report = apiReportService.getRunningReport(testResult.getTestId());
         }
         apiReportService.complete(testResult, report);
-
         queue.clear();
         super.teardownTest(context);
+
+        TestPlanTestCaseService testPlanTestCaseService = CommonBeanFactory.getBean(TestPlanTestCaseService.class);
+        List<String> ids = testPlanTestCaseService.getTestPlanTestCaseIds(testResult.getTestId());
+        if (ids.size() > 0) {
+            try {
+                if (StringUtils.equals(APITestStatus.Success.name(), report.getStatus())) {
+                    testPlanTestCaseService.updateTestCaseStates(ids, TestPlanTestCaseStatus.Pass.name());
+                } else {
+                    testPlanTestCaseService.updateTestCaseStates(ids, TestPlanTestCaseStatus.Failure.name());
+                }
+            } catch (Exception e) {
+                LogUtil.error(e);
+            }
+
+        }
+        NoticeService noticeService = CommonBeanFactory.getBean(NoticeService.class);
+        try {
+            List<NoticeDetail> noticeList = noticeService.queryNotice(testResult.getTestId());
+            MailService mailService = CommonBeanFactory.getBean(MailService.class);
+            mailService.sendApiNotification(report, noticeList);
+        } catch (Exception e) {
+            LogUtil.error(e);
+        }
+
     }
 
     private RequestResult getRequestResult(SampleResult result) {
@@ -126,6 +153,7 @@ public class APIBackendListenerClient extends AbstractBackendListenerClient impl
         requestResult.setBody(result.getSamplerData());
         requestResult.setHeaders(result.getRequestHeaders());
         requestResult.setRequestSize(result.getSentBytes());
+        requestResult.setStartTime(result.getStartTime());
         requestResult.setTotalAssertions(result.getAssertionResults().length);
         requestResult.setSuccess(result.isSuccessful());
         requestResult.setError(result.getErrorCount());
@@ -142,6 +170,21 @@ public class APIBackendListenerClient extends AbstractBackendListenerClient impl
         responseResult.setResponseTime(result.getTime());
         responseResult.setResponseMessage(result.getResponseMessage());
 
+        if (JMeterVars.get(result.hashCode()) != null) {
+            List<String> vars = new LinkedList<>();
+            JMeterVars.get(result.hashCode()).entrySet().parallelStream().reduce(vars, (first, second) -> {
+                first.add(second.getKey() + "：" + second.getValue());
+                return first;
+            }, (first, second) -> {
+                if (first == second) {
+                    return first;
+                }
+                first.addAll(second);
+                return first;
+            });
+            responseResult.setVars(StringUtils.join(vars, "\n"));
+            JMeterVars.remove(result.hashCode());
+        }
         for (AssertionResult assertionResult : result.getAssertionResults()) {
             ResponseAssertionResult responseAssertionResult = getResponseAssertionResult(assertionResult);
             if (responseAssertionResult.isPass()) {
@@ -170,7 +213,7 @@ public class APIBackendListenerClient extends AbstractBackendListenerClient impl
         this.runMode = context.getParameter("runMode");
         this.debugReportId = context.getParameter("debugReportId");
         if (StringUtils.isBlank(this.runMode)) {
-            this.runMode =  ApiRunMode.RUN.name();
+            this.runMode = ApiRunMode.RUN.name();
         }
     }
 
@@ -178,7 +221,7 @@ public class APIBackendListenerClient extends AbstractBackendListenerClient impl
         ResponseAssertionResult responseAssertionResult = new ResponseAssertionResult();
         responseAssertionResult.setMessage(assertionResult.getFailureMessage());
         responseAssertionResult.setName(assertionResult.getName());
-        responseAssertionResult.setPass(!assertionResult.isFailure());
+        responseAssertionResult.setPass(!assertionResult.isFailure() && !assertionResult.isError());
         return responseAssertionResult;
     }
 

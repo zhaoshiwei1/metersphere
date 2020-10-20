@@ -101,8 +101,8 @@
       <el-form :model="memberForm" ref="form" :rules="orgMemberRule" label-position="right" label-width="100px"
                size="small">
         <el-form-item :label="$t('commons.member')" prop="userIds">
-          <el-select v-model="memberForm.userIds" multiple :placeholder="$t('member.please_choose_member')"
-                     class="select-width">
+          <el-select filterable v-model="memberForm.userIds" multiple :placeholder="$t('member.please_choose_member')"
+                     class="select-width" :filter-method="dataFilter">
             <el-option
               v-for="item in memberForm.userList"
               :key="item.id"
@@ -114,7 +114,7 @@
           </el-select>
         </el-form-item>
         <el-form-item :label="$t('commons.role')" prop="roleIds">
-          <el-select v-model="memberForm.roleIds" multiple :placeholder="$t('role.please_choose_role')"
+          <el-select filterable v-model="memberForm.roleIds" multiple :placeholder="$t('role.please_choose_role')"
                      class="select-width">
             <el-option
               v-for="item in memberForm.roles"
@@ -151,7 +151,7 @@
         </el-form-item>
         <el-form-item :label="$t('commons.role')" prop="roleIds"
                       :rules="{required: true, message: $t('role.please_choose_role'), trigger: 'change'}">
-          <el-select v-model="memberForm.roleIds" multiple :placeholder="$t('role.please_choose_role')"
+          <el-select filterable v-model="memberForm.roleIds" multiple :placeholder="$t('role.please_choose_role')"
                      class="select-width">
             <el-option
               v-for="item in memberForm.allroles"
@@ -233,13 +233,7 @@ export default {
       rule: {
         name: [
           {required: true, message: this.$t('organization.input_name'), trigger: 'blur'},
-          {min: 2, max: 25, message: this.$t('commons.input_limit', [2, 25]), trigger: 'blur'},
-          {
-            required: true,
-            pattern: /^[\u4e00-\u9fa5_a-zA-Z0-9.·-]+$/,
-            message: this.$t('organization.special_characters_are_not_supported'),
-            trigger: 'blur'
-          }
+          {min: 2, max: 25, message: this.$t('commons.input_limit', [2, 25]), trigger: 'blur'}
         ],
         description: [
           {max: 50, message: this.$t('commons.input_limit', [0, 50]), trigger: 'blur'}
@@ -268,10 +262,22 @@ export default {
       this.memberForm = {};
       this.result = this.$get('/user/list/', response => {
         this.$set(this.memberForm, "userList", response.data);
+        this.$set(this.memberForm, "copyUserList", response.data);
       });
       this.result = this.$get('/role/list/org', response => {
         this.$set(this.memberForm, "roles", response.data);
       })
+    },
+    dataFilter(val) {
+      if (val) {
+        this.memberForm.userList = this.memberForm.copyUserList.filter((item) => {
+          if (!!~item.id.indexOf(val) || !!~item.id.toUpperCase().indexOf(val.toUpperCase())) {
+            return true
+          }
+        })
+      } else {
+        this.memberForm.userList = this.memberForm.copyUserList;
+      }
     },
     edit(row) {
       this.dialogOrgUpdateVisible = true;

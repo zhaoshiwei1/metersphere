@@ -1,15 +1,17 @@
 <template>
-
   <div>
-
     <el-dialog :title="$t('test_track.plan_view.relevance_test_case')"
                :visible.sync="dialogFormVisible"
                @close="close"
                width="60%" v-loading="result.loading"
+               :close-on-click-modal="false"
                top="50px">
 
       <el-container class="main-content">
         <el-aside class="tree-aside" width="250px">
+          <el-link type="primary" class="project-link" @click="switchProject">{{projectName ? projectName :
+            $t('test_track.switch_project') }}
+          </el-link>
           <node-tree class="node-tree"
                      @nodeSelectEvent="nodeChange"
                      @refresh="refresh"
@@ -19,11 +21,13 @@
 
         <el-container>
           <el-main class="case-content">
-            <ms-table-header :condition.sync="condition" @search="getCaseNames" title="" :show-create="false"/>
+            <ms-table-header :condition.sync="condition" @search="search" title="" :show-create="false"/>
             <el-table
               :data="testCases"
               @filter-change="filter"
               row-key="id"
+              @mouseleave.passive="leave"
+              v-el-table-infinite-scroll="scrollLoading"
               @select-all="handleSelectAll"
               @select="handleSelectionChange"
               height="50vh"
@@ -61,7 +65,9 @@
                 </template>
               </el-table-column>
             </el-table>
-            <div style="text-align: center">共 {{testCases.length}} 条</div>
+
+            <div v-if="!lineStatus" style="text-align: center">{{$t('test_track.review_view.last_page')}}</div>
+            <div style="text-align: center">共 {{total}} 条</div>
           </el-main>
         </el-container>
       </el-container>
@@ -71,6 +77,8 @@
       </template>
 
     </el-dialog>
+
+    <switch-project ref="switchProject" @getProjectNode="getProjectNode"/>
   </div>
 
 </template>
@@ -86,6 +94,8 @@
   import MsTableAdvSearchBar from "../../../../common/components/search/MsTableAdvSearchBar";
   import MsTableHeader from "../../../../common/components/MsTableHeader";
   import {TEST_CASE_CONFIGS} from "../../../../common/components/search/search-components";
+  import SwitchProject from "../../../case/components/SwitchProject";
+  import elTableInfiniteScroll from 'el-table-infinite-scroll';
 
   export default {
     name: "TestCaseRelevance",
@@ -96,7 +106,11 @@
       TypeTableItem,
       MsTableSearchBar,
       MsTableAdvSearchBar,
-      MsTableHeader
+      MsTableHeader,
+      SwitchProject
+    },
+    directives: {
+      'el-table-infinite-scroll': elTableInfiniteScroll
     },
     data() {
       return {
@@ -108,6 +122,13 @@
         treeNodes: [],
         selectNodeIds: [],
         selectNodeNames: [],
+        projectId: '',
+        projectName: '',
+        projects: [],
+        pageSize: 50,
+        currentPage: 1,
+        total: 0,
+        lineStatus: true,
         condition: {
           components: TEST_CASE_CONFIGS
         },
@@ -131,10 +152,16 @@
     },
     watch: {
       planId() {
-        this.initData();
+        this.condition.planId = this.planId;
       },
       selectNodeIds() {
-        this.getCaseNames();
+        if (this.dialogFormVisible) {
+          this.search();
+        }
+      },
+      projectId() {
+        this.condition.projectId = this.projectId;
+        this.getProjectNode();
       }
     },
     updated() {
@@ -142,13 +169,18 @@
     },
     methods: {
       openTestCaseRelevanceDialog() {
-        this.initData();
+        this.getProject();
         this.dialogFormVisible = true;
       },
       saveCaseRelevance() {
         let param = {};
         param.planId = this.planId;
         param.testCaseIds = [...this.selectIds];
+        param.request = this.condition;
+        // 选择全选则全部加入到评审，无论是否加载完全部
+        if (this.testCases.length === param.testCaseIds.length) {
+          param.testCaseIds = ['all'];
+        }
         this.result = this.$post('/test/plan/relevance', param, () => {
           this.selectIds.clear();
           this.$success(this.$t('commons.save_success'));
@@ -156,24 +188,37 @@
           this.$emit('refresh');
         });
       },
-      getCaseNames() {
-        let param = {};
+      buildPagePath(path) {
+        return path + "/" + this.currentPage + "/" + this.pageSize;
+      },
+      search() {
+        this.currentPage = 1;
+        this.testCases = [];
+        this.getTestCases(true);
+      },
+      getTestCases(flag) {
         if (this.planId) {
-          // param.planId = this.planId;
           this.condition.planId = this.planId;
         }
         if (this.selectNodeIds && this.selectNodeIds.length > 0) {
-          // param.nodeIds = this.selectNodeIds;
           this.condition.nodeIds = this.selectNodeIds;
         } else {
           this.condition.nodeIds = [];
         }
-        this.result = this.$post('/test/case/name', this.condition, response => {
-          this.testCases = response.data;
-          this.testCases.forEach(item => {
-            item.checked = false;
+        if (this.projectId) {
+          this.condition.projectId = this.projectId;
+          this.result = this.$post(this.buildPagePath('/test/case/name'), this.condition, response => {
+            let data = response.data;
+            this.total = data.itemCount;
+            let tableData = data.listObject;
+            tableData.forEach(item => {
+              item.checked = false;
+            });
+            flag ? this.testCases = tableData : this.testCases = this.testCases.concat(tableData);
+            this.lineStatus = tableData.length === 50 && this.testCases.length < this.total;
           });
-        });
+        }
+
       },
       handleSelectAll(selection) {
         if (selection.length > 0) {
@@ -181,7 +226,6 @@
             this.selectIds.add(item.id);
           });
         } else {
-          // this.selectIds.clear();
           this.testCases.forEach(item => {
             if (this.selectIds.has(item.id)) {
               this.selectIds.delete(item.id);
@@ -200,28 +244,35 @@
         this.selectNodeIds = nodeIds;
         this.selectNodeNames = nodeNames;
       },
-      initData() {
-        this.getCaseNames();
-        this.getAllNodeTreeByPlanId();
-      },
       refresh() {
         this.close();
       },
+      scrollLoading() {
+        if (this.dialogFormVisible && this.lineStatus) {
+          this.currentPage += 1;
+          this.getTestCases();
+        }
+      },
       getAllNodeTreeByPlanId() {
         if (this.planId) {
-          this.result = this.$get("/case/node/list/all/plan/" + this.planId, response => {
+          let param = {
+            testPlanId: this.planId,
+            projectId: this.projectId
+          };
+          this.result = this.$post("/case/node/list/all/plan", param, response => {
             this.treeNodes = response.data;
           });
         }
       },
       close() {
+        this.lineStatus = false;
         this.selectIds.clear();
         this.selectNodeIds = [];
         this.selectNodeNames = [];
       },
       filter(filters) {
         _filter(filters, this.condition);
-        this.initData();
+        this.search();
       },
       toggleSelection(rows) {
         rows.forEach(row => {
@@ -233,6 +284,36 @@
           })
         })
       },
+      getProject() {
+        if (this.planId) {
+          this.$post("/test/plan/project/", {planId: this.planId}, res => {
+            let data = res.data;
+            if (data) {
+              this.projects = data;
+              this.projectId = data[0].id;
+              this.projectName = data[0].name;
+            }
+          })
+        }
+      },
+      switchProject() {
+        this.$refs.switchProject.open({id: this.planId, url: '/test/plan/project/', type: 'plan'});
+      },
+      getProjectNode(projectId) {
+        const index = this.projects.findIndex(project => project.id === projectId);
+        if (index !== -1) {
+          this.projectName = this.projects[index].name;
+        }
+        if (projectId) {
+          this.projectId = projectId;
+        }
+        this.result = this.$post("/case/node/list/all/plan",
+          {testPlanId: this.planId, projectId: this.projectId}, response => {
+            this.treeNodes = response.data;
+          });
+
+        this.selectNodeIds = [];
+      }
     }
   }
 </script>
@@ -279,6 +360,12 @@
     min-height: 300px;
     height: 100%;
     /*border: 1px solid #EBEEF5;*/
+  }
+
+  .project-link {
+    float: right;
+    margin-right: 12px;
+    margin-bottom: 10px;
   }
 
 </style>

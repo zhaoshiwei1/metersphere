@@ -19,6 +19,9 @@ import io.metersphere.dto.LoadTestDTO;
 import io.metersphere.dto.ScheduleDao;
 import io.metersphere.i18n.Translator;
 import io.metersphere.job.sechedule.PerformanceTestJob;
+import io.metersphere.notice.domain.NoticeDetail;
+import io.metersphere.notice.service.MailService;
+import io.metersphere.notice.service.NoticeService;
 import io.metersphere.performance.engine.Engine;
 import io.metersphere.performance.engine.EngineFactory;
 import io.metersphere.service.FileService;
@@ -34,6 +37,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.CollectionUtils;
 import org.springframework.web.multipart.MultipartFile;
 
+import javax.annotation.Resource;
 import java.io.OutputStream;
 import java.net.InetSocketAddress;
 import java.net.Socket;
@@ -41,8 +45,6 @@ import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.*;
 import java.util.stream.Collectors;
-
-import javax.annotation.Resource;
 
 @Service
 @Transactional(rollbackFor = Exception.class)
@@ -81,6 +83,10 @@ public class PerformanceTestService {
     private TestCaseMapper testCaseMapper;
     @Resource
     private TestCaseService testCaseService;
+    @Resource
+    private NoticeService noticeService;
+    @Resource
+    private MailService mailService;
 
     public List<LoadTestDTO> list(QueryTestPlanRequest request) {
         request.setOrders(ServiceUtils.getDefaultOrder(request.getOrders()));
@@ -232,7 +238,15 @@ public class PerformanceTestService {
         }
 
         startEngine(loadTest, engine, request.getTriggerMode());
-
+        List<NoticeDetail> noticeList = null;
+        if (request.getTriggerMode().equals("SCHEDULE")) {
+            try {
+                noticeList = noticeService.queryNotice(loadTest.getId());
+                mailService.sendPerformanceNotification(noticeList, PerformanceTestStatus.Completed.name(), loadTest, engine.getReportId());
+            } catch (Exception e) {
+                LogUtil.error(e.getMessage(), e);
+            }
+        }
         return engine.getReportId();
     }
 
@@ -275,7 +289,7 @@ public class PerformanceTestService {
             testReport.setUserId(SessionUtils.getUser().getId());
         }
         // 启动测试
-
+        List<NoticeDetail> noticeList = null;
         try {
             engine.start();
             // 启动正常修改状态 starting
@@ -305,6 +319,10 @@ public class PerformanceTestService {
             loadTest.setStatus(PerformanceTestStatus.Error.name());
             loadTest.setDescription(e.getMessage());
             loadTestMapper.updateByPrimaryKeySelective(loadTest);
+            if (triggerMode.equals("SCHEDULE")) {
+                noticeList = noticeService.queryNotice(loadTest.getId());
+                mailService.sendPerformanceNotification(noticeList, loadTest.getStatus(), loadTest, loadTest.getId());
+            }
             throw e;
         }
     }
@@ -381,6 +399,10 @@ public class PerformanceTestService {
         if (!CollectionUtils.isEmpty(loadTestFiles)) {
             loadTestFiles.forEach(loadTestFile -> {
                 FileMetadata fileMetadata = fileService.copyFile(loadTestFile.getFileId());
+                if (fileMetadata == null) {
+                    // 如果性能测试出现文件变更，这里会有 null
+                    return;
+                }
                 loadTestFile.setTestId(copy.getId());
                 loadTestFile.setFileId(fileMetadata.getId());
                 loadTestFileMapper.insert(loadTestFile);
@@ -423,6 +445,17 @@ public class PerformanceTestService {
             reportService.stopEngine(loadTest, engine);
             // 停止测试之后设置报告的状态
             reportService.updateStatus(reportId, PerformanceTestStatus.Completed.name());
+            List<NoticeDetail> noticeList = null;
+            if (loadTestReport.getTriggerMode().equals("SCHEDULE")) {
+                try {
+                    noticeList = noticeService.queryNotice(loadTest.getId());
+                    mailService.sendPerformanceNotification(noticeList, loadTestReport.getStatus(), loadTest, loadTestReport.getId());
+                } catch (Exception e) {
+                    LogUtil.error(e.getMessage(), e);
+                }
+            }
+
+
         }
     }
 

@@ -37,7 +37,7 @@
               <ms-table-operator :is-tester-permission="true" @editClick="edit(scope.row)"
                                  @deleteClick="handleDelete(scope.row)">
                 <template v-if="baseUrl == 'api'" v-slot:behind>
-                  <ms-table-operator-button :is-tester-permission="true" :tip="'环境配置'" icon="el-icon-setting"
+                  <ms-table-operator-button :is-tester-permission="true" :tip="$t('api_test.environment.environment_config')" icon="el-icon-setting"
                                             type="info" @exec="openEnvironmentConfig(scope.row)"/>
                 </template>
               </ms-table-operator>
@@ -76,6 +76,7 @@
     <ms-delete-confirm :title="$t('project.delete')" @delete="_handleDelete" ref="deleteConfirm"/>
 
     <api-environment-config ref="environmentConfig"/>
+    <ms-jar-config ref="jarConfig"/>
 
   </ms-container>
 </template>
@@ -126,7 +127,7 @@ export default {
           {min: 2, max: 50, message: this.$t('commons.input_limit', [2, 50]), trigger: 'blur'}
         ],
         description: [
-          {max: 500, message: this.$t('commons.input_limit', [0, 500]), trigger: 'blur'}
+          {max: 250, message: this.$t('commons.input_limit', [0, 250]), trigger: 'blur'}
         ],
       },
     }

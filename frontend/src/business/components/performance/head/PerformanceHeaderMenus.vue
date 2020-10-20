@@ -95,13 +95,21 @@ export default {
       }
     }
   },
+  methods: {
+    registerEvents() {
+      PerformanceEvent.$on(LIST_CHANGE, () => {
+        // todo 这里偶尔会有 refs 为空的情况
+        if (!this.$refs.projectRecent) {
+          return;
+        }
+        this.$refs.projectRecent.recent();
+        this.$refs.testRecent.recent();
+        this.$refs.reportRecent.recent();
+      });
+    }
+  },
   mounted() {
-    let self = this;
-    PerformanceEvent.$on(LIST_CHANGE, () => {
-      self.$refs.projectRecent.recent();
-      self.$refs.testRecent.recent();
-      self.$refs.reportRecent.recent();
-    });
+    this.registerEvents();
   }
 }
 

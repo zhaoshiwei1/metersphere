@@ -46,7 +46,10 @@
         handleRemove(file) {
           this.$refs.upload.handleRemove(file);
           for (let i = 0; i < this.parameter.files.length;  i++) {
-            if (file.name === this.parameter.files[i].name) {
+            let fileName = file.file ? file.file.name : file.name;
+            let paramFileName = this.parameter.files[i].file ?
+              this.parameter.files[i].file.name : this.parameter.files[i].name;
+            if (fileName === paramFileName) {
               this.parameter.files.splice(i, 1);
               this.$refs.upload.handleRemove(file);
               break;
@@ -105,9 +108,9 @@
 
   .api-body-upload {
     min-height: 32px;
-    /*border: 1px solid #EBEEF5;*/
-    /*padding: 2px;*/
-    /*border-radius: 4px;*/
+    border: 1px solid #EBEEF5;
+    padding: 2px;
+    border-radius: 4px;
   }
 
   .upload-item {

@@ -105,6 +105,9 @@
                 </include>
             </if>
 
+            <if test="request.excludeId != null">
+                and api_test.id != #{request.excludeId}
+            </if>
             <if test="request.name != null">
                 and api_test.name like CONCAT('%', #{request.name},'%')
             </if>
@@ -116,6 +119,9 @@
             </if>
             <if test="request.id != null">
                 AND api_test.id = #{request.id}
+            </if>
+            <if test="request.userId != null">
+                AND api_test.user_id = #{request.userId}
             </if>
             <if test="request.filters != null and request.filters.size() > 0">
                 <foreach collection="request.filters.entrySet()" index="key" item="values">
@@ -141,6 +147,19 @@
         select id,name,status
         from api_test
         where project_id = #{projectId}
+    </select>
+
+    <select id="listByIds" resultType="io.metersphere.base.domain.ApiTest">
+        select *
+        from api_test
+        <where>
+            <if test="ids != null and ids.size() > 0">
+                id in
+                <foreach collection="ids" item="id" separator="," open="(" close=")">
+                    #{id}
+                </foreach>
+            </if>
+        </where>
     </select>
 
 </mapper>

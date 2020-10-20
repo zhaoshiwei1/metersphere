@@ -39,8 +39,7 @@
                 :disabled="!row.edit || readOnly"
                 size="mini"
                 v-model="row.enable"
-                active-color="#13ce66"
-                inactive-color="#ff4949">
+                inactive-color="#DCDFE6">
               </el-switch>
             </template>
           </el-table-column>
@@ -90,6 +89,19 @@
           </el-form-item>
         </el-form>
       </el-col>
+      <el-col :span="8">
+        <el-form :inline="true">
+          <el-form-item>
+            <div>{{ $t('load_test.response_timeout') }}</div>
+          </el-form-item>
+          <el-form-item>
+            <el-input-number :disabled="readOnly" size="mini" v-model="responseTimeout"></el-input-number>
+          </el-form-item>
+          <el-form-item>
+            ms
+          </el-form-item>
+        </el-form>
+      </el-col>
     </el-row>
     <el-row>
       <el-col :span="8">
@@ -117,6 +129,7 @@ export default {
   data() {
     return {
       timeout: 2000,
+      responseTimeout: null,
       statusCode: [],
       domains: [],
       params: [],
@@ -148,12 +161,11 @@ export default {
         if (response.data) {
           let data = JSON.parse(response.data);
           this.timeout = data.timeout || 10;
+          this.responseTimeout = data.responseTimeout;
           this.statusCode = data.statusCode || [];
           this.statusCodeStr = this.statusCode.join(',');
           this.domains = data.domains || [];
           this.params = data.params || [];
-          /*this.domains.forEach(d => d.edit = false);
-          this.params.forEach(d => d.edit = false);*/
         }
       });
     },
@@ -236,6 +248,7 @@ export default {
       }
       return {
         timeout: this.timeout,
+        responseTimeout: this.responseTimeout,
         statusCode: statusCode,
         params: this.params,
         domains: this.domains,

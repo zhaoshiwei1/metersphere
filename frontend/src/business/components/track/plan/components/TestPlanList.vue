@@ -20,7 +20,7 @@
         show-overflow-tooltip>
       </el-table-column>
       <el-table-column
-        prop="principal"
+        prop="userName"
         :label="$t('test_track.plan.plan_principal')"
         show-overflow-tooltip>
       </el-table-column>
@@ -70,20 +70,38 @@
       </el-table-column>
       <el-table-column
         sortable
-        prop="createTime"
-        :label="$t('commons.create_time')"
+        prop="plannedStartTime"
+        :label="$t('test_track.plan.planned_start_time')"
         show-overflow-tooltip>
         <template v-slot:default="scope">
-          <span>{{ scope.row.createTime | timestampFormatDate }}</span>
+          <span>{{ scope.row.plannedStartTime | timestampFormatDate }}</span>
         </template>
       </el-table-column>
       <el-table-column
         sortable
-        prop="updateTime"
-        :label="$t('commons.update_time')"
+        prop="plannedEndTime"
+        :label="$t('test_track.plan.planned_end_time')"
         show-overflow-tooltip>
         <template v-slot:default="scope">
-          <span>{{ scope.row.updateTime | timestampFormatDate }}</span>
+          <span>{{ scope.row.plannedEndTime | timestampFormatDate }}</span>
+        </template>
+      </el-table-column>
+      <el-table-column
+        sortable
+        prop="actualStartTime"
+        :label="$t('test_track.plan.actual_start_time')"
+        show-overflow-tooltip>
+        <template v-slot:default="scope">
+          <span>{{ scope.row.actualStartTime | timestampFormatDate }}</span>
+        </template>
+      </el-table-column>
+      <el-table-column
+        sortable
+        prop="actualEndTime"
+        :label="$t('test_track.plan.actual_end_time')"
+        show-overflow-tooltip>
+        <template v-slot:default="scope">
+          <span>{{ scope.row.actualEndTime | timestampFormatDate }}</span>
         </template>
       </el-table-column>
       <el-table-column
@@ -123,7 +141,7 @@ import MsTableOperatorButton from "../../../common/components/MsTableOperatorBut
 import MsTableOperator from "../../../common/components/MsTableOperator";
 import PlanStatusTableItem from "../../common/tableItems/plan/PlanStatusTableItem";
 import PlanStageTableItem from "../../common/tableItems/plan/PlanStageTableItem";
-import {_filter, _sort, checkoutTestManagerOrTestUser} from "../../../../../common/js/utils";
+import {_filter, _sort, checkoutTestManagerOrTestUser} from "@/common/js/utils";
 import TestReportTemplateList from "../view/comonents/TestReportTemplateList";
 import TestCaseReportView from "../view/comonents/report/TestCaseReportView";
 import MsDeleteConfirm from "../../../common/components/MsDeleteConfirm";
@@ -191,6 +209,16 @@ export default {
         let data = response.data;
         this.total = data.itemCount;
         this.tableData = data.listObject;
+        for (let i = 0; i < this.tableData.length; i++) {
+          let path = "/test/plan/project";
+          this.$post(path,{planId: this.tableData[i].id}, res => {
+            let arr = res.data;
+            let projectName = arr.map(data => data.name).join("、");
+            let projectIds = arr.map(data => data.id);
+            this.$set(this.tableData[i], "projectName", projectName);
+            this.$set(this.tableData[i], "projectIds", projectIds);
+          })
+        }
       });
     },
     buildPagePath(path) {

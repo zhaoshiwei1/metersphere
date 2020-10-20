@@ -6,11 +6,14 @@ import io.metersphere.commons.utils.LogUtil;
 import io.metersphere.config.JmeterProperties;
 import io.metersphere.i18n.Translator;
 import org.apache.commons.lang3.StringUtils;
+import org.apache.jmeter.NewDriver;
 import org.apache.jmeter.config.Arguments;
 import org.apache.jmeter.save.SaveService;
 import org.apache.jmeter.util.JMeterUtils;
 import org.apache.jmeter.visualizers.backend.BackendListener;
 import org.apache.jorphan.collections.HashTree;
+
+import org.springframework.context.i18n.LocaleContextHolder;
 import org.springframework.stereotype.Service;
 
 import javax.annotation.Resource;
@@ -27,14 +30,18 @@ public class JMeterService {
     public void run(String testId, String debugReportId, InputStream is) {
         String JMETER_HOME = getJmeterHome();
 
+        NewDriver.setContextClassLoader();
+
         String JMETER_PROPERTIES = JMETER_HOME + "/bin/jmeter.properties";
         JMeterUtils.loadJMeterProperties(JMETER_PROPERTIES);
         JMeterUtils.setJMeterHome(JMETER_HOME);
+        JMeterUtils.setLocale(LocaleContextHolder.getLocale());
+
         try {
             Object scriptWrapper = SaveService.loadElement(is);
             HashTree testPlan = getHashTree(scriptWrapper);
+            JMeterVars.addJSR223PostProcessor(testPlan);
             addBackendListener(testId, debugReportId, testPlan);
-
             LocalRunner runner = new LocalRunner(testPlan);
             runner.run();
         } catch (Exception e) {
@@ -43,7 +50,7 @@ public class JMeterService {
         }
     }
 
-    private String getJmeterHome() {
+    public String getJmeterHome() {
         String home = getClass().getResource("/").getPath() + "jmeter";
         try {
             File file = new File(home);
