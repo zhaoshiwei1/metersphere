@@ -16,7 +16,7 @@
             <el-card>
               <el-scrollbar>
 
-                <el-header>
+                <el-header style="height: 100%;">
 
                   <el-row type="flex" class="head-bar">
 
@@ -27,7 +27,7 @@
                       </el-button>
                     </el-col>
 
-                    <el-col :span="12" class="head-right">
+                    <el-col :span="14" class="head-right">
 
                       <el-button plain size="mini" icon="el-icon-arrow-up"
                                  :disabled="index + 1 <= 1"
@@ -38,10 +38,12 @@
                                  @click="handleNext()"/>
                       <el-divider direction="vertical"></el-divider>
 
-                      <el-button type="success" size="mini" :disabled="isReadOnly" plain @click="saveCase('Pass')">
+                      <el-button type="success" size="mini"
+                                 :disabled="isReadOnly" :icon="testCase.reviewStatus === 'Pass' ? 'el-icon-check' : ''" @click="saveCase('Pass')">
                         {{ $t('test_track.review.pass') }}
                       </el-button>
-                      <el-button type="danger" size="mini" :disabled="isReadOnly" plain @click="saveCase('UnPass')">
+                      <el-button type="danger" size="mini"
+                                 :disabled="isReadOnly" :icon="testCase.reviewStatus === 'UnPass' ? 'el-icon-check' : ''" @click="saveCase('UnPass')">
                         {{ $t('test_track.review.un_pass') }}
                       </el-button>
                     </el-col>
@@ -199,6 +201,22 @@
                       </div>
                     </el-col>
                   </el-row>
+
+                  <el-row>
+                    <el-col :span="20" :offset="1">
+                      <div>
+                        <span class="cast_label">{{ $t('test_track.case.attachment') }}:</span>
+                      </div>
+                      <div>
+                        <test-case-attachment :table-data="tableData"
+                                              :read-only="false"
+                                              :is-delete="false"
+                                              @handleDelete="handleDelete"
+                        />
+                      </div>
+                    </el-col>
+                  </el-row>
+
                 </div>
 
               </el-scrollbar>
@@ -232,6 +250,7 @@ import ApiTestDetail from "../../../plan/view/comonents/test/ApiTestDetail";
 import TestPlanTestCaseStatusButton from "../../../plan/common/TestPlanTestCaseStatusButton";
 import {listenGoBack, removeGoBackListener} from "@/common/js/utils";
 import ReviewComment from "../../commom/ReviewComment";
+import TestCaseAttachment from "@/business/components/track/case/components/TestCaseAttachment";
 
 export default {
   name: "TestReviewTestCaseEdit",
@@ -241,7 +260,8 @@ export default {
     ApiTestResult,
     ApiTestDetail,
     TestPlanTestCaseStatusButton,
-    ReviewComment
+    ReviewComment,
+    TestCaseAttachment
   },
   data() {
     return {
@@ -256,7 +276,8 @@ export default {
       isFailure: true,
       users: [],
       activeName: 'comment',
-      comments: []
+      comments: [],
+      tableData: []
     };
   },
   props: {
@@ -283,12 +304,20 @@ export default {
     saveCase(status) {
       let param = {};
       param.id = this.testCase.id;
+      param.caseId = this.testCase.caseId;
       param.reviewId = this.testCase.reviewId;
       param.status = status;
       this.$post('/test/review/case/edit', param, () => {
         this.$success(this.$t('commons.save_success'));
         this.updateTestCases(param);
         this.setReviewStatus(this.testCase.reviewId);
+        // 修改当前用例的评审状态
+        this.testCase.reviewStatus = status;
+        // 修改当前用例在整个用例列表的状态
+        this.testCases[this.index].reviewStatus = status;
+        if (this.index < this.testCases.length - 1) {
+          this.handleNext();
+        }
       });
     },
     updateTestCases(param) {
@@ -322,6 +351,20 @@ export default {
       this.testCase = item;
       this.getComments(item);
       this.initTest();
+      this.getFileMetaData(testCase);
+    },
+    getFileMetaData(testCase) {
+      this.tableData = [];
+      this.result = this.$get("test/case/file/metadata/" + testCase.caseId, response => {
+        let files = response.data;
+        if (!files) {
+          return;
+        }
+        this.tableData = JSON.parse(JSON.stringify(files));
+        this.tableData.map(f => {
+          f.size = f.size + ' Bytes';
+        });
+      })
     },
     openTestCaseEdit(testCase) {
       this.showDialog = true;
@@ -396,6 +439,9 @@ export default {
         }).length > 0;
       }
     },
+    handleDelete() {
+
+    }
   }
 }
 </script>
@@ -418,6 +464,7 @@ export default {
 
 .head-right {
   text-align: right;
+  margin-top: 30px;
 }
 
 .el-col:not(.test-detail) {

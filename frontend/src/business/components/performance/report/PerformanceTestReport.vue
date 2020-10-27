@@ -139,9 +139,9 @@ export default {
         {text: 'Error', value: 'Error'}
       ],
       triggerFilters: [
-        {text: '手动', value: 'MANUAL'},
-        {text: '定时任务', value: 'SCHEDULE'},
-        {text: 'API', value: 'API'}
+        {text: this.$t('commons.trigger_mode.manual'), value: 'MANUAL'},
+        {text: this.$t('commons.trigger_mode.schedule'), value: 'SCHEDULE'},
+        {text: this.$t('commons.trigger_mode.api'), value: 'API'}
       ],
       buttons: [
         {
@@ -166,6 +166,7 @@ export default {
         let data = response.data;
         this.total = data.itemCount;
         this.tableData = data.listObject;
+        this.selectRows = new Set();
       });
     },
     search(combine) {

@@ -9,7 +9,7 @@
                       maxlength="30" show-word-limit
             >
               <template v-slot:prepend>
-                <el-select :disabled="isReadOnly" v-model="testPlan.projectId"
+                <el-select filterable v-model="testPlan.projectId"
                            :placeholder="$t('load_test.select_project')">
                   <el-option
                     v-for="item in projects"
@@ -125,6 +125,8 @@ export default {
       this.isReadOnly = true;
     }
     this.getTest(this.$route.params.testId);
+  },
+  activated() {
     this.listProjects();
   },
   mounted() {

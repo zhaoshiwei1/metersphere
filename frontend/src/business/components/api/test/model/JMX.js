@@ -291,6 +291,26 @@ export class JDBCSampler extends DefaultTestElement {
   }
 }
 
+export class TCPSampler extends DefaultTestElement {
+  constructor(testName, request = {}) {
+    super('TCPSampler', 'TCPSamplerGui', 'TCPSampler', testName);
+
+    this.stringProp("TCPSampler.classname", request.classname);
+    this.stringProp("TCPSampler.server", request.server);
+    this.stringProp("TCPSampler.port", request.port);
+    this.stringProp("TCPSampler.ctimeout", request.ctimeout);
+    this.stringProp("TCPSampler.timeout", request.timeout);
+    this.boolProp("TCPSampler.reUseConnection", request.reUseConnection);
+    this.boolProp("TCPSampler.nodelay", request.nodelay);
+    this.boolProp("TCPSampler.closeConnection", request.closeConnection);
+    this.stringProp("TCPSampler.soLinger", request.soLinger);
+    this.stringProp("TCPSampler.EolByte", request.eolByte);
+    this.stringProp("TCPSampler.request", request.request);
+    this.stringProp("ConfigTestElement.username", request.username);
+    this.stringProp("ConfigTestElement.password", request.password);
+  }
+}
+
 export class HTTPSamplerProxy extends DefaultTestElement {
   constructor(testName, options = {}) {
     super('HTTPSamplerProxy', 'HttpTestSampleGui', 'HTTPSamplerProxy', testName);
@@ -317,6 +337,7 @@ export class HTTPSamplerProxy extends DefaultTestElement {
     }
 
     this.boolProp("HTTPSampler.use_keepalive", options.keepalive, true);
+    this.boolProp("HTTPSampler.DO_MULTIPART_POST", options.doMultipartPost, false);
   }
 }
 
@@ -335,7 +356,7 @@ export class HTTPSamplerArguments extends Element {
 
     let collectionProp = this.collectionProp('Arguments.arguments');
     this.args.forEach(arg => {
-      if (arg.enable === true  || arg.enable === undefined) { // 非禁用的条件加入执行
+      if (arg.enable === true || arg.enable === undefined) { // 非禁用的条件加入执行
         let elementProp = collectionProp.elementProp(arg.name, 'HTTPArgument');
         elementProp.boolProp('HTTPArgument.always_encode', arg.encode, true);
         elementProp.boolProp('HTTPArgument.use_equals', arg.equals, true);
@@ -394,7 +415,7 @@ export class ResponseAssertion extends DefaultTestElement {
     this.assertion = assertion || {};
 
     this.stringProp('Assertion.test_field', this.assertion.field);
-    this.boolProp('Assertion.assume_success', false);
+    this.boolProp('Assertion.assume_success', this.assertion.assumeSuccess);
     this.intProp('Assertion.test_type', this.assertion.type);
     this.stringProp('Assertion.custom_message', this.assertion.message);
 
@@ -419,11 +440,12 @@ export class JSONPathAssertion extends DefaultTestElement {
 }
 
 export class ResponseCodeAssertion extends ResponseAssertion {
-  constructor(testName, type, value, message) {
+  constructor(testName, type, value, assumeSuccess, message) {
     let assertion = {
       field: 'Assertion.response_code',
       type: type,
       value: value,
+      assumeSuccess: assumeSuccess,
       message: message,
     }
     super(testName, assertion)
@@ -431,11 +453,12 @@ export class ResponseCodeAssertion extends ResponseAssertion {
 }
 
 export class ResponseDataAssertion extends ResponseAssertion {
-  constructor(testName, type, value, message) {
+  constructor(testName, type, value, assumeSuccess, message) {
     let assertion = {
       field: 'Assertion.response_data',
       type: type,
       value: value,
+      assumeSuccess: assumeSuccess,
       message: message,
     }
     super(testName, assertion)
@@ -443,11 +466,12 @@ export class ResponseDataAssertion extends ResponseAssertion {
 }
 
 export class ResponseHeadersAssertion extends ResponseAssertion {
-  constructor(testName, type, value, message) {
+  constructor(testName, type, value, assumeSuccess, message) {
     let assertion = {
       field: 'Assertion.response_headers',
       type: type,
       value: value,
+      assumeSuccess: assumeSuccess,
       message: message,
     }
     super(testName, assertion)

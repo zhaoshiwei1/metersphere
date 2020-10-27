@@ -1,5 +1,6 @@
 export default {
   commons: {
+    comment:'评论',
     examples: '示例',
     help_documentation: '帮助文档',
     delete_cancelled: '已取消删除',
@@ -116,7 +117,10 @@ export default {
     id: 'ID',
     millisecond: '毫秒',
     cannot_be_null: '不能为空',
+    required: "{0}是必填的",
     already_exists: '名称不能重复',
+    modifier: '修改人',
+    validate: "校验",
     date: {
       select_date: '选择日期',
       start_date: '开始日期',
@@ -213,6 +217,26 @@ export default {
     delete_warning: '删除该组织将同步删除该组织下所有相关工作空间和相关工作空间下的所有项目，以及项目中的所有用例、接口测试、性能测试等,确定要删除吗?',
     service_integration: '服务集成',
     defect_manage: '缺陷管理平台',
+    message_settings:'消息设置',
+    message:{
+      jenkins_task_notification: 'Jenkins接口调用任务通知',
+      test_plan_task_notification: '测试计划任务通知',
+      test_review_task_notice: '测试评审任务通知',
+      create_new_notification: '创建新通知',
+      select_events: '选择事件',
+      defect_task_notification: '缺陷任务通知',
+      select_receiving_method: '选择接收方式',
+      mail: '邮件',
+      nail_robot: '钉钉机器人',
+      enterprise_wechat_robot: '企业微信机器人',
+      notes: '注意: 1.事件，接收方式，接收人为必填项；\n' +
+        '         2.接收方式除邮件外webhook为必填；\n' +
+        '         3.机器人选择为群机器人，安全验证选择“自定义关键词” ："任务通知"',
+      message: '事件，接收人，接收方式为必填项',
+      message_webhook: '接收方式为钉钉和企业机器人时，webhook为必填项'
+
+
+    },
     integration: {
       select_defect_platform: '请选择要集成的缺陷管理平台：',
       basic_auth_info: 'Basic Auth 账号信息：',
@@ -305,7 +329,7 @@ export default {
     api_test_report: '接口测试报告',
     load_test_report: '性能测试报告',
     test_plan_report: '测试计划报告',
-    recent: '最近的报告',
+    recent: '我最近的报告',
     search_by_name: '根据名称搜索',
     test_name: '所属测试',
     test_overview: '测试概览',
@@ -342,7 +366,7 @@ export default {
     same_project_test: '只能运行同一项目内的测试',
     already_exists: '测试名称不能重复',
     operating: '操作',
-    recent: '最近的测试',
+    recent: '我最近的测试',
     search_by_name: '根据名称搜索',
     project_name: '所属项目',
     delete_confirm: '确认删除测试: ',
@@ -423,6 +447,13 @@ export default {
     export_config: "导出",
     enable_validate_tip: "没有可用请求",
     copy: "复制测试",
+    jar_config: {
+      title: "jar包管理",
+      jar_file: "jar包",
+      delete_tip: "删除需重启服务后生效",
+      file_exist: "该项目下已存在改jar包",
+      upload_limit_size: "上传文件大小不能超过 30MB!",
+    },
     environment: {
       name: "环境名称",
       socket: "环境域名",
@@ -436,6 +467,7 @@ export default {
       common_config: "通用配置",
       http_config: "HTTP配置",
       database_config: "数据库配置",
+      tcp_config: "TCP配置",
     },
     scenario: {
       scenario: "场景",
@@ -481,7 +513,7 @@ export default {
       url_description: "例如：https://fit2cloud.com",
       path_description: "例如：/login",
       url_invalid: "URL无效",
-      parameters: "请求参数",
+      parameters: "Query参数",
       jmeter_func: "Jmeter 方法",
       parameters_filter_example: "示例",
       parameters_filter_tips: "只支持 MockJs 函数结果预览",
@@ -496,13 +528,14 @@ export default {
       parameters_advance_add_param_error: "请输入函数参数",
       parameters_desc: "参数追加到URL，例如https://fit2cloud.com/entries?key1=Value1&Key2=Value2",
       headers: "请求头",
-      body: "请求内容",
+      body: "请求体",
       body_kv: "键值对",
       body_text: "文本",
       timeout_config: "超时设置",
       connect_timeout: "连接超时",
       response_timeout: "响应超时",
       follow_redirects: "跟随重定向",
+      do_multipart_post: "对 POST 使用 multipart/form-data",
       body_upload_limit_size: "上传文件大小不能超过 500 MB!",
       condition: "条件",
       condition_variable: "变量，例如: ${var}",
@@ -524,9 +557,11 @@ export default {
         expect: "期望值",
         expression: "Perl型正则表达式",
         response_in_time: "响应时间在...毫秒以内",
+        ignore_status: "忽略状态"
       },
       extract: {
         label: "提取",
+        multiple_matching: "匹配多条",
         select_type: "请选择类型",
         description: "从响应结果中提取数据并将其存储在变量中，在后续请求中使用变量。",
         regex: "正则",
@@ -572,6 +607,22 @@ export default {
         dataSource_cannot_be_empty: "SQL请求数据源不能为空",
         result_variable: "存储结果",
         variable_names: "按列存储",
+      },
+      tcp: {
+        server: "服务器名或IP",
+        port: "端口",
+        connect: "连接(ms)",
+        response: "响应(ms)",
+        re_use_connection: "Re-use connection",
+        no_delay: "设置无延迟",
+        close_connection: "关闭连接",
+        so_linger: "SO LINGER",
+        eol_byte: "行尾(EOL)字节值",
+        request: "要发送的文本",
+        username: "用户名",
+        password: "密码",
+        login: "登录设置",
+        server_cannot_be_empty: "服务器名或IP不能为空",
       }
     },
     api_import: {
@@ -635,9 +686,9 @@ export default {
     save: "保 存",
     return: "返 回",
     length_less_than: "长度必须小于",
-    recent_plan: "最近的计划",
-    recent_case: "最近的用例",
-    recent_review: "最近的评审",
+    recent_plan: "我最近的计划",
+    recent_case: "我最近的用例",
+    recent_review: "我最近的评审",
     pass_rate: "通过率",
     execution_result: ": 请选择执行结果",
     actual_result: ": 实际结果为空",
@@ -697,13 +748,23 @@ export default {
       batch_delete_case: '批量删除用例',
       batch_unlink: '批量取消关联',
       project_name: '所属项目',
+      status: '评审状态',
+      status_prepare: '未评审',
+      status_pass: '通过',
+      status_un_pass: '未通过',
+      cancel_relevance_project: "取消项目关联会同时取消该项目下已关联的测试用例",
+      img_loading_fail: "图片加载失败",
+      pdf_loading_fail: "PDF加载失败",
+      upload_tip: "只能上传jpg、jpeg、png、docx、doc、pdf、xlsx文件",
+      attachment: "附件",
+      upload_time: "上传时间",
       import: {
         import: "导入用例",
         case_import: "导入测试用例",
         download_template: "下载模版",
         click_upload: "点击上传",
         upload_limit: "只能上传xls/xlsx文件，且不超过20M",
-        upload_xmind: "支持文件类型：.xmind；一次至多导入500 条用例",
+        upload_xmind: "支持文件类型：.xmind；一次至多导入800 条用例",
         upload_xmind_format: "上传文件只能是 .xmind 格式",
         upload_limit_other_size: "上传文件大小不能超过",
         upload_limit_count: "一次只能上传一个文件",
@@ -771,7 +832,8 @@ export default {
       my_create: "我创建的评审",
       reviewed_by_me: "待我评审",
       creator: "创建人",
-      done: "已评用例"
+      done: "已评用例",
+      result_distribution: "结果分布"
     },
     comment: {
       no_comment: "暂无评论",
@@ -785,7 +847,8 @@ export default {
       all_case: "全部用例",
       start_review: "开始评审",
       relevance_case: "关联用例",
-      execute_result: "执行结果",
+      last_page: "已经到底了！",
+      execute_result: "评审结果",
     },
     module: {
       search: "搜索模块",
@@ -875,7 +938,9 @@ export default {
       delete: "删除缺陷",
       title_description_required: "标题和描述必填",
       close_success: "关闭成功",
-      preview: "预览"
+      preview: "预览",
+      please_choose_current_owner: "请选择处理人",
+      tapd_current_owner: "Tapd平台处理人：",
     }
   },
   test_resource_pool: {

@@ -18,9 +18,8 @@
         <el-table-column prop="email" :label="$t('commons.email')"/>
         <el-table-column prop="status" :label="$t('commons.status')" width="120">
           <template v-slot:default="scope">
-            <el-switch v-model="scope.row.status"
-                       active-color="#13ce66"
-                       inactive-color="#ff4949"
+            <el-switch :disabled="currentUserId === scope.row.id" v-model="scope.row.status"
+                       inactive-color="#DCDFE6"
                        active-value="1"
                        inactive-value="0"
                        @change="changeSwitch(scope.row)"
@@ -75,7 +74,7 @@
                         :prop="'roles.' + index + '.id'"
                         :rules="{required: true, message: $t('role.please_choose_role'), trigger: 'change'}"
           >
-            <el-select v-model="role.id" :placeholder="$t('role.please_choose_role')">
+            <el-select filterable v-model="role.id" :placeholder="$t('role.please_choose_role')">
               <el-option
                 v-for="item in activeRole(role)"
                 :key="item.id"
@@ -94,7 +93,7 @@
                           :prop="'roles.' + index + '.ids'"
                           :rules="{required: true, message: $t('organization.select_organization'), trigger: 'change'}"
             >
-              <el-select v-model="role.ids" :placeholder="$t('organization.select_organization')" multiple>
+              <el-select filterable v-model="role.ids" :placeholder="$t('organization.select_organization')" multiple>
                 <el-option
                   v-for="item in form.orgList"
                   :key="item.id"
@@ -109,7 +108,7 @@
                           :prop="'roles.' + index + '.ids'"
                           :rules="{required: true, message: $t('workspace.select'), trigger: 'change'}"
             >
-              <el-select v-model="role.ids" :placeholder="$t('workspace.select')" multiple>
+              <el-select filterable v-model="role.ids" :placeholder="$t('workspace.select')" multiple>
                 <el-option
                   v-for="item in form.wsList"
                   :key="item.id"
@@ -124,7 +123,7 @@
                           :prop="'roles.' + index + '.ids'"
                           :rules="{required: true, message: $t('workspace.select'), trigger: 'change'}"
             >
-              <el-select v-model="role.ids" :placeholder="$t('workspace.select')" multiple>
+              <el-select filterable v-model="role.ids" :placeholder="$t('workspace.select')" multiple>
                 <el-option
                   v-for="item in form.wsList"
                   :key="item.id"
@@ -139,7 +138,7 @@
                           :prop="'roles.' + index + '.ids'"
                           :rules="{required: true, message: $t('workspace.select'), trigger: 'change'}"
             >
-              <el-select v-model="role.ids" :placeholder="$t('workspace.select')" multiple>
+              <el-select filterable v-model="role.ids" :placeholder="$t('workspace.select')" multiple>
                 <el-option
                   v-for="item in form.wsList"
                   :key="item.id"
@@ -188,7 +187,7 @@
                         :prop="'roles.' + index + '.id'"
                         :rules="{required: true, message: $t('role.please_choose_role'), trigger: 'change'}"
           >
-            <el-select v-model="role.id" :placeholder="$t('role.please_choose_role')" :disabled="!!role.id">
+            <el-select filterable v-model="role.id" :placeholder="$t('role.please_choose_role')" :disabled="!!role.id">
               <el-option
                 v-for="item in activeRole(role)"
                 :key="item.id"
@@ -205,7 +204,7 @@
                           :prop="'roles.' + index + '.ids'"
                           :rules="{required: true, message: $t('organization.select_organization'), trigger: 'change'}"
             >
-              <el-select v-model="role.ids" :placeholder="$t('organization.select_organization')" multiple>
+              <el-select filterable v-model="role.ids" :placeholder="$t('organization.select_organization')" multiple>
                 <el-option
                   v-for="item in form.orgList"
                   :key="item.id"
@@ -220,7 +219,7 @@
                           :prop="'roles.' + index + '.ids'"
                           :rules="{required: true, message: $t('workspace.select'), trigger: 'change'}"
             >
-              <el-select v-model="role.ids" :placeholder="$t('workspace.select')" multiple>
+              <el-select filterable v-model="role.ids" :placeholder="$t('workspace.select')" multiple>
                 <el-option
                   v-for="item in form.wsList"
                   :key="item.id"
@@ -235,7 +234,7 @@
                           :prop="'roles.' + index + '.ids'"
                           :rules="{required: true, message: $t('workspace.select'), trigger: 'change'}"
             >
-              <el-select v-model="role.ids" :placeholder="$t('workspace.select')" multiple>
+              <el-select filterable v-model="role.ids" :placeholder="$t('workspace.select')" multiple>
                 <el-option
                   v-for="item in form.wsList"
                   :key="item.id"
@@ -250,7 +249,7 @@
                           :prop="'roles.' + index + '.ids'"
                           :rules="{required: true, message: $t('workspace.select'), trigger: 'change'}"
             >
-              <el-select v-model="role.ids" :placeholder="$t('workspace.select')" multiple>
+              <el-select filterable v-model="role.ids" :placeholder="$t('workspace.select')" multiple>
                 <el-option
                   v-for="item in form.wsList"
                   :key="item.id"
@@ -308,6 +307,7 @@ import MsTableOperatorButton from "../../common/components/MsTableOperatorButton
 import {hasRole, listenGoBack, removeGoBackListener} from "@/common/js/utils";
 import MsRolesTag from "../../common/components/MsRolesTag";
 import {ROLE_ADMIN} from "@/common/js/constants";
+import {getCurrentUser} from "../../../../common/js/utils";
 
 export default {
   name: "MsUser",
@@ -328,6 +328,7 @@ export default {
       updatePath: '/user/special/update',
       editPasswordPath: '/user/special/password',
       result: {},
+      currentUserId: '',
       createVisible: false,
       updateVisible: false,
       editPasswordVisible: false,
@@ -405,6 +406,7 @@ export default {
     }
   },
   activated() {
+    this.currentUserId = getCurrentUser().id;
     this.search();
     this.getAllRole();
   },

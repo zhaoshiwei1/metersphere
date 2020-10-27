@@ -1,6 +1,7 @@
 package io.metersphere.track.service;
 
 import io.metersphere.base.domain.*;
+import io.metersphere.base.mapper.TestCaseMapper;
 import io.metersphere.base.mapper.TestCaseReviewMapper;
 import io.metersphere.base.mapper.TestCaseReviewTestCaseMapper;
 import io.metersphere.base.mapper.TestCaseReviewUsersMapper;
@@ -14,10 +15,12 @@ import io.metersphere.track.dto.TestReviewCaseDTO;
 import io.metersphere.track.request.testplancase.TestReviewCaseBatchRequest;
 import io.metersphere.track.request.testreview.DeleteRelevanceRequest;
 import io.metersphere.track.request.testreview.QueryCaseReviewRequest;
+import org.apache.commons.lang3.StringUtils;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import javax.annotation.Resource;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -38,6 +41,8 @@ public class TestReviewTestCaseService {
     TestCaseReviewMapper testCaseReviewMapper;
     @Resource
     TestCaseReviewService testCaseReviewService;
+    @Resource
+    TestCaseMapper testCaseMapper;
 
     public List<TestReviewCaseDTO> list(QueryCaseReviewRequest request) {
         request.setOrders(ServiceUtils.getDefaultOrder(request.getOrders()));
@@ -61,17 +66,17 @@ public class TestReviewTestCaseService {
         return testCaseReviewUsers.stream().map(TestCaseReviewUsers::getUserId).collect(Collectors.toList());
     }
 
-    private String getReviewName(List<String> userIds, Map userMap) {
-        StringBuilder stringBuilder = new StringBuilder();
-        String name = "";
-
+    private String getReviewName(List<String> userIds, Map<String, String> userMap) {
+        List<String> userNames = new ArrayList<>();
         if (userIds.size() > 0) {
             for (String id : userIds) {
-                stringBuilder.append(userMap.get(id)).append("、");
+                String n = userMap.get(id);
+                if (StringUtils.isNotBlank(n)) {
+                    userNames.add(n);
+                }
             }
-            name = stringBuilder.toString().substring(0, stringBuilder.length() - 1);
         }
-        return name;
+        return StringUtils.join(userNames, "、");
     }
 
     public int deleteTestCase(DeleteRelevanceRequest request) {
@@ -82,8 +87,13 @@ public class TestReviewTestCaseService {
     private void checkReviewer(String reviewId) {
         List<String> userIds = testCaseReviewService.getTestCaseReviewerIds(reviewId);
         String currentId = SessionUtils.getUser().getId();
-        if (!userIds.contains(currentId)) {
-            MSException.throwException("非用例评审人员，不能解除用例关联！");
+        TestCaseReview caseReview = testCaseReviewMapper.selectByPrimaryKey(reviewId);
+        String creator = "";
+        if (caseReview != null) {
+            creator = caseReview.getCreator();
+        }
+        if (!userIds.contains(currentId) && !StringUtils.equals(creator, currentId)) {
+            MSException.throwException("没有权限，不能解除用例关联！");
         }
     }
 
@@ -105,15 +115,17 @@ public class TestReviewTestCaseService {
             MSException.throwException("非此用例的评审人员！");
         }
 
-        TestCaseReview testCaseReview = testCaseReviewMapper.selectByPrimaryKey(reviewId);
-        Long endTime = testCaseReview.getEndTime();
-        if (System.currentTimeMillis() > endTime) {
-            MSException.throwException("此用例评审已到截止时间！");
-        }
-
+        // 记录测试用例评审状态变更
         testCaseReviewTestCase.setStatus(testCaseReviewTestCase.getStatus());
         testCaseReviewTestCase.setReviewer(SessionUtils.getUser().getId());
         testCaseReviewTestCase.setUpdateTime(System.currentTimeMillis());
         testCaseReviewTestCaseMapper.updateByPrimaryKeySelective(testCaseReviewTestCase);
+
+        // 修改用例评审状态
+        String caseId = testCaseReviewTestCase.getCaseId();
+        TestCaseWithBLOBs testCase = new TestCaseWithBLOBs();
+        testCase.setId(caseId);
+        testCase.setReviewStatus(testCaseReviewTestCase.getStatus());
+        testCaseMapper.updateByPrimaryKeySelective(testCase);
     }
 }

@@ -1,5 +1,6 @@
 export default {
   commons: {
+    comment:'評論',
     examples: '示例',
     help_documentation: '幫助文檔',
     delete_cancelled: '已取消刪除',
@@ -116,7 +117,10 @@ export default {
     id: 'ID',
     millisecond: '毫秒',
     cannot_be_null: '不能為空',
+    required: "{0}是必填的",
     already_exists: '名稱不能重復',
+    modifier: '修改人',
+    validate: "校驗",
     date: {
       select_date: '選擇日期',
       start_date: '開始日期',
@@ -213,6 +217,21 @@ export default {
     delete_warning: '刪除該組織將同步刪除該組織下所有相關工作空間和相關工作空間下的所有項目，以及項目中的所有用例、接口測試、性能測試等,確定要刪除嗎?',
     service_integration: '服務集成',
     defect_manage: '缺陷管理平臺',
+    message_settings:'消息設定',
+    message:{
+      jenkins_task_notification: 'Jenkins任務通知',
+      test_plan_task_notification: '測試計畫任務通知',
+      test_review_task_notice: '測試評審任務通知',
+      defect_task_notification: '缺陷任務通知',
+      create_new_notification: '創建新通知',
+      select_events: '選擇事件',
+      select_receiving_method: '選擇接收管道',
+      mail: '郵件',
+      nail_robot: '釘釘機器人',
+      enterprise_wechat_robot: '企業微信機器人',
+      message_webhook: '接收管道為釘釘和企業機器人時，webhook為必填項\n' +
+        '\n'
+    },
     integration: {
       select_defect_platform: '請選擇要集成的缺陷管理平臺：',
       basic_auth_info: 'Basic Auth 賬號信息：',
@@ -235,7 +254,17 @@ export default {
       successful_operation: '操作成功',
       not_integrated: '未集成該平臺',
       choose_platform: '請選擇集成的平臺',
-      verified: '驗證通過'
+      verified: '驗證通過',
+      mail: '郵件',
+      nail_robot: '釘釘機器人',
+      enterprise_wechat_robot: '企業微信機器人',
+      notes: '注意：1.事件，接收管道，接收人為必填項；\n' +
+        '\n' +
+        '2.接收管道除郵件外webhook為必填；\n' +
+        '\n' +
+        '3.機器人選擇為群機器人，安全驗證選擇“自定義關鍵字”：“任務通知”',
+      message: '事件，接收人，接收管道為必填項\n' +
+        '\n'
     }
   },
   project: {
@@ -305,7 +334,7 @@ export default {
     api_test_report: '接口測試報告',
     load_test_report: '性能測試報告',
     test_plan_report: '測試計劃報告',
-    recent: '最近的報告',
+    recent: '我最近的報告',
     search_by_name: '根據名稱搜索',
     test_name: '所屬測試',
     test_overview: '測試概覽',
@@ -342,7 +371,7 @@ export default {
     same_project_test: '只能運行同壹項目內的測試',
     already_exists: '測試名稱不能重復',
     operating: '操作',
-    recent: '最近的測試',
+    recent: '我最近的測試',
     search_by_name: '根據名稱搜索',
     project_name: '所屬項目',
     delete_confirm: '確認刪除測試: ',
@@ -423,6 +452,13 @@ export default {
     export_config: "導出",
     enable_validate_tip: "沒有可用請求",
     copy: "復制測試",
+    jar_config: {
+      title: "jar包管理",
+      jar_file: "jar包",
+      delete_tip: "刪除需重啟服務後生效",
+      file_exist: "該項目下已存在改jar包",
+      upload_limit_size: "上傳文件大小不能超過 30MB!",
+    },
     environment: {
       name: "環境名稱",
       socket: "環境域名",
@@ -436,6 +472,7 @@ export default {
       common_config: "通用配置",
       http_config: "HTTP配置",
       database_config: "數據庫配置",
+      tcp_config: "TCP配置",
     },
     scenario: {
       scenario: "場景",
@@ -481,7 +518,7 @@ export default {
       url_description: "例如：https://fit2cloud.com",
       path_description: "例如：/login",
       url_invalid: "URL無效",
-      parameters: "請求參數",
+      parameters: "Query參數",
       jmeter_func: "Jmeter 方法",
       parameters_filter_example: "示例",
       parameters_filter_tips: "只支持 MockJs 函數結果預覽",
@@ -496,13 +533,14 @@ export default {
       parameters_advance_add_param_error: "請輸入函數參數",
       parameters_desc: "參數追加到URL，例如https://fit2cloud.com/entries?key1=Value1&Key2=Value2",
       headers: "請求頭",
-      body: "請求內容",
+      body: "請求體",
       body_kv: "鍵值對",
       body_text: "文本",
       timeout_config: "超時設置",
       connect_timeout: "連接超時",
       response_timeout: "響應超時",
       follow_redirects: "跟隨重定向",
+      do_multipart_post: "對 POST 使用 multipart/form-data",
       body_upload_limit_size: "上傳文件大小不能超過 500 MB!",
       condition: "條件",
       condition_variable: "變量，例如: ${var}",
@@ -524,9 +562,11 @@ export default {
         expect: "期望值",
         expression: "Perl型正則表達式",
         response_in_time: "響應時間在...毫秒以內",
+        ignore_status: "忽略狀態"
       },
       extract: {
         label: "提取",
+        multiple_matching: "匹配多條",
         select_type: "請選擇類型",
         description: "從響應結果中提取數據並將其存儲在變量中，在後續請求中使用變量。",
         regex: "正則",
@@ -572,6 +612,22 @@ export default {
         dataSource_cannot_be_empty: "SQL請求數據源不能為空",
         result_variable: "存儲結果",
         variable_names: "按列存儲",
+      },
+      tcp: {
+        server: "服務器名或IP",
+        port: "端口",
+        connect: "連接(ms)",
+        response: "響應(ms)",
+        re_use_connection: "Re-use connection",
+        no_delay: "設置無延遲",
+        close_connection: "關閉連接",
+        so_linger: "SO LINGER",
+        eol_byte: "行尾(EOL)字節值",
+        request: "要發送的文本",
+        username: "用戶名",
+        password: "密碼",
+        login: "登錄設置",
+        server_cannot_be_empty: "服務器名或IP不能為空",
       }
     },
     api_import: {
@@ -635,9 +691,9 @@ export default {
     save: "保 存",
     return: "返 回",
     length_less_than: "長度必須小於",
-    recent_plan: "最近的計劃",
-    recent_case: "最近的用例",
-    recent_review: "最近的評審",
+    recent_plan: "我最近的計劃",
+    recent_case: "我最近的用例",
+    recent_review: "我最近的評審",
     pass_rate: "通過率",
     execution_result: ": 請選擇執行結果",
     actual_result: ": 實際結果為空",
@@ -697,13 +753,23 @@ export default {
       batch_delete_case: '批量刪除用例',
       batch_unlink: '批量取消關聯',
       project_name: '所屬項目',
+      status: '評審狀態',
+      status_prepare: '未評審',
+      status_pass: '通過',
+      status_un_pass: '未通過',
+      cancel_relevance_project: "取消項目關聯會同時取消該項目下已關聯的測試用例",
+      img_loading_fail: "圖片加載失敗",
+      pdf_loading_fail: "PDF加載失敗",
+      upload_tip: "只能上傳jpg、jpeg、png、docx、doc、pdf、xlsx文件",
+      attachment: "附件",
+      upload_time: "上傳時間",
       import: {
         import: "導入用例",
         case_import: "導入測試用例",
         download_template: "下載模版",
         click_upload: "點擊上傳",
         upload_limit: "只能上傳xls/xlsx文件，且不超過20M",
-        upload_xmind: "支持文件類型：.xmind；壹次至多導入500 條用例",
+        upload_xmind: "支持文件類型：.xmind；壹次至多導入800 條用例",
         upload_xmind_format: "上傳文件只能是 .xmind 格式",
         upload_limit_other_size: "上傳文件大小不能超過",
         upload_limit_count: "壹次只能上傳壹個文件",
@@ -771,7 +837,8 @@ export default {
       my_create: "我創建的評審",
       reviewed_by_me: "待我評審",
       creator: "創建人",
-      done: "已評用例"
+      done: "已評用例",
+      result_distribution: "結果分布"
     },
     comment: {
       no_comment: "暫無評論",
@@ -785,7 +852,8 @@ export default {
       all_case: "全部用例",
       start_review: "開始評審",
       relevance_case: "關聯用例",
-      execute_result: "執行結果",
+      last_page: "已經到底了！",
+      execute_result: "評審結果",
     },
     module: {
       search: "搜索模塊",
@@ -875,7 +943,9 @@ export default {
       delete: "刪除缺陷",
       title_description_required: "標題和描述必填",
       close_success: "關閉成功",
-      preview: "預覽"
+      preview: "預覽",
+      please_choose_current_owner: "請選擇處理人",
+      tapd_current_owner: "Tapd平臺處理人：",
     }
   },
   test_resource_pool: {

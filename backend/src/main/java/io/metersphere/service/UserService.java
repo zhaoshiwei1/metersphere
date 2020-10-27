@@ -22,6 +22,7 @@ import io.metersphere.controller.request.organization.QueryOrgMemberRequest;
 import io.metersphere.dto.UserDTO;
 import io.metersphere.dto.UserRoleDTO;
 import io.metersphere.i18n.Translator;
+import io.metersphere.notice.domain.UserDetail;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.shiro.SecurityUtils;
 import org.apache.shiro.authc.*;
@@ -61,13 +62,13 @@ public class UserService {
     @Resource
     private WorkspaceService workspaceService;
 
-    public List<String> queryEmail(List<String> userIds) {
-        return extUserMapper.queryEmailByIds(userIds);
+    public List<UserDetail> queryTypeByIds(List<String> userIds) {
+        return extUserMapper.queryTypeByIds(userIds);
     }
 
-    public List<String> queryEmailByIds(List<String> userIds) {
-        return extUserMapper.queryEmailByIds(userIds);
-    }
+  /*  public List<String> queryEmailByIds(List<String> userIds) {
+        return extUserMapper.queryTypeByIds(userIds);
+    }*/
 
     public UserDTO insert(UserRequest user) {
         checkUserParam(user);
@@ -319,6 +320,10 @@ public class UserService {
     public void updateUser(User user) {
         user.setUpdateTime(System.currentTimeMillis());
         userMapper.updateByPrimaryKeySelective(user);
+        // 禁用用户之后，剔除在线用户
+        if (StringUtils.equals(user.getStatus(), UserStatus.DISABLED)) {
+            SessionUtils.kickOutUser(user.getId());
+        }
     }
 
     public void switchUserRole(String sign, String sourceId) {
@@ -487,20 +492,18 @@ public class UserService {
 
     /*修改当前用户用户密码*/
     private User updateCurrentUserPwd(EditPassWordRequest request) {
-        if (SessionUtils.getUser() != null) {
-            User user = userMapper.selectByPrimaryKey(SessionUtils.getUser().getId());
-            String pwd = user.getPassword();
-            String prepwd = CodingUtil.md5(request.getPassword(), "utf-8");
-            String newped = request.getNewpassword();
-            if (StringUtils.isNotBlank(prepwd)) {
-                if (prepwd.trim().equals(pwd.trim())) {
-                    user.setPassword(CodingUtil.md5(newped));
-                    user.setUpdateTime(System.currentTimeMillis());
-                    return user;
-                }
-            }
-            MSException.throwException(Translator.get("password_modification_failed"));
+        String oldPassword = CodingUtil.md5(request.getPassword(), "utf-8");
+        String newPassword = request.getNewpassword();
+        UserExample userExample = new UserExample();
+        userExample.createCriteria().andIdEqualTo(SessionUtils.getUser().getId()).andPasswordEqualTo(oldPassword);
+        List<User> users = userMapper.selectByExample(userExample);
+        if (!CollectionUtils.isEmpty(users)) {
+            User user = users.get(0);
+            user.setPassword(CodingUtil.md5(newPassword));
+            user.setUpdateTime(System.currentTimeMillis());
+            return user;
         }
+        MSException.throwException(Translator.get("password_modification_failed"));
         return null;
     }
 
@@ -512,8 +515,8 @@ public class UserService {
     /*管理员修改用户密码*/
     private User updateUserPwd(EditPassWordRequest request) {
         User user = userMapper.selectByPrimaryKey(request.getId());
-        String newped = request.getNewpassword();
-        user.setPassword(CodingUtil.md5(newped));
+        String newPassword = request.getNewpassword();
+        user.setPassword(CodingUtil.md5(newPassword));
         user.setUpdateTime(System.currentTimeMillis());
         return user;
     }

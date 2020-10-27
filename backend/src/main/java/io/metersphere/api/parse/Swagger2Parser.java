@@ -50,7 +50,11 @@ public class Swagger2Parser extends ApiImportAbstractParser {
             for (HttpMethod method : httpMethods) {
                 Operation operation = operationMap.get(method);
                 HttpRequest request = new HttpRequest();
-                request.setName(operation.getOperationId());
+                if (StringUtils.isNotBlank(operation.getSummary())) {
+                    request.setName(operation.getSummary());
+                } else {
+                    request.setName(operation.getOperationId());
+                }
                 request.setPath(pathName);
                 request.setUseEnvironment(true);
                 request.setMethod(method.name());
@@ -137,8 +141,10 @@ public class Swagger2Parser extends ApiImportAbstractParser {
             Model model = definitions.get(simpleRef);
             HashSet<String> refSet = new HashSet<>();
             refSet.add(simpleRef);
-            JSONObject bodyParameters = getBodyJSONObjectParameters(model.getProperties(), definitions, refSet);
-            body.setRaw(bodyParameters.toJSONString());
+            if (model != null ) {
+                JSONObject bodyParameters = getBodyJSONObjectParameters(model.getProperties(), definitions, refSet);
+                body.setRaw(bodyParameters.toJSONString());
+            }
         } else if (schema instanceof ArrayModel) {
             ArrayModel arrayModel = (ArrayModel) bodyParameter.getSchema();
             Property items = arrayModel.getItems();

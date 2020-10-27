@@ -25,17 +25,19 @@ public class TestPlan implements Serializable {
 
     private String executorMatchRule;
 
+    private Long createTime;
+
+    private Long updateTime;
+
+    private Long actualEndTime;
+
     private Long plannedStartTime;
 
     private Long plannedEndTime;
 
     private Long actualStartTime;
 
-    private Long actualEndTime;
-
-    private Long createTime;
-
-    private Long updateTime;
+    private String creator;
 
     private String tags;
 
