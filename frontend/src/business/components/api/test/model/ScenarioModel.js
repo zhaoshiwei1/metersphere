@@ -25,7 +25,7 @@ import {
   ThreadGroup,
   XPath2Extractor,
   IfController as JMXIfController,
-  ConstantTimer as JMXConstantTimer, TCPSampler,
+  ConstantTimer as JMXConstantTimer, TCPSampler, JSR223Assertion,
 } from "./JMX";
 import Mock from "mockjs";
 import {funcFilters} from "@/common/js/func-filter";
@@ -94,7 +94,8 @@ export const ASSERTION_TYPE = {
   TEXT: "Text",
   REGEX: "Regex",
   JSON_PATH: "JSON",
-  DURATION: "Duration"
+  DURATION: "Duration",
+  JSR223: "JSR223",
 }
 
 export const ASSERTION_REGEX_SUBJECT = {
@@ -716,16 +717,34 @@ export class KeyValue extends BaseConfig {
   }
 }
 
+export class BeanShellProcessor extends BaseConfig {
+  constructor(options) {
+    super();
+    this.script = undefined;
+    this.set(options);
+  }
+}
+
+export class JSR223Processor extends BaseConfig {
+  constructor(options) {
+    super();
+    this.script = undefined;
+    this.language = "beanshell";
+    this.set(options);
+  }
+}
+
 export class Assertions extends BaseConfig {
   constructor(options) {
     super();
     this.text = [];
     this.regex = [];
     this.jsonPath = [];
+    this.jsr223 = [];
     this.duration = undefined;
 
     this.set(options);
-    this.sets({text: Text, regex: Regex, jsonPath: JSONPath}, options);
+    this.sets({text: Text, regex: Regex, jsonPath: JSONPath, jsr223: AssertionJSR223}, options);
   }
 
   initOptions(options) {
@@ -742,21 +761,22 @@ export class AssertionType extends BaseConfig {
   }
 }
 
-export class BeanShellProcessor extends BaseConfig {
+export class AssertionJSR223 extends AssertionType {
   constructor(options) {
-    super();
-    this.script = undefined;
-    this.set(options);
-  }
-}
+    super(ASSERTION_TYPE.JSR223);
+    this.variable = undefined;
+    this.operator = undefined;
+    this.value = undefined;
+    this.desc = undefined;
 
-
-export class JSR223Processor extends BaseConfig {
-  constructor(options) {
-    super();
+    this.name = undefined;
     this.script = undefined;
     this.language = "beanshell";
     this.set(options);
+  }
+
+  isValid() {
+    return !!this.script && !!this.language;
   }
 }
 
@@ -795,6 +815,10 @@ export class JSONPath extends AssertionType {
     this.description = undefined;
 
     this.set(options);
+  }
+
+  setJSONPathDescription() {
+    this.description = this.expression + " expect: " + (this.expect ? this.expect : '');
   }
 
   isValid() {
@@ -978,7 +1002,8 @@ class JMXHttpRequest {
         this.port = environment.config.httpConfig.port;
         this.protocol = environment.config.httpConfig.protocol;
         let url = new URL(environment.config.httpConfig.protocol + "://" + environment.config.httpConfig.socket);
-        this.path = this.getPostQueryParameters(request, decodeURIComponent(url.pathname + (request.path ? request.path : '')));
+        let envPath = url.pathname === '/' ? '' : url.pathname;
+        this.path = this.getPostQueryParameters(request, decodeURIComponent(envPath + (request.path ? request.path : '')));
       }
       this.connectTimeout = request.connectTimeout;
       this.responseTimeout = request.responseTimeout;
@@ -1115,16 +1140,17 @@ class JMXGenerator {
               sampler = new DubboSample(request.name || "", new JMXDubboRequest(request, scenario.dubboConfig));
             } else if (request instanceof HttpRequest) {
               sampler = new HTTPSamplerProxy(request.name || "", new JMXHttpRequest(request, scenario.environment));
-              this.addRequestHeader(sampler, request);
+              this.addRequestHeader(sampler, request, scenario);
               this.addRequestArguments(sampler, request);
               this.addRequestBody(sampler, request, testId);
             } else if (request instanceof SqlRequest) {
               request.dataSource = scenario.databaseConfigMap.get(request.dataSource);
               sampler = new JDBCSampler(request.name || "", request);
-              this.addRequestVariables(sampler, request);
             } else if (request instanceof TCPRequest) {
               sampler = new TCPSampler(request.name || "", new JMXTCPRequest(request, scenario));
             }
+
+            this.addRequestVariables(sampler, request, scenario);
 
             this.addDNSCacheManager(sampler, scenario.environment, request.useEnvironment);
 
@@ -1162,20 +1188,13 @@ class JMXGenerator {
       envArray = JSON.parse(environments);
     }
     envArray.forEach(item => {
-      if (item.name && !keys.has(item.name)) {
+      if (item.enable != false && item.name && !keys.has(item.name)) {
         target.push(new KeyValue({name: item.name, value: item.value}));
       }
     })
   }
 
   addScenarioVariables(threadGroup, scenario) {
-    if (scenario.environment) {
-      let config = scenario.environment.config;
-      if (!(scenario.environment.config instanceof Object)) {
-        config = JSON.parse(scenario.environment.config);
-      }
-      this.addEnvironments(config.commonConfig.variables, scenario.variables)
-    }
     let args = this.filterKV(scenario.variables);
     if (args.length > 0) {
       let name = scenario.name + " Variables";
@@ -1183,11 +1202,23 @@ class JMXGenerator {
     }
   }
 
-  addRequestVariables(httpSamplerProxy, request) {
+  addRequestVariables(httpSamplerProxy, request, scenario) {
+    if (request.useEnvironment && scenario.environment) {
+      let config = scenario.environment.config;
+      if (!(scenario.environment.config instanceof Object)) {
+        config = JSON.parse(scenario.environment.config);
+      }
+      if (!request.variables) {
+        request.variables = [];
+      }
+      this.addEnvironments(config.commonConfig.variables, request.variables)
+    }
     let name = request.name + " Variables";
-    let variables = this.filterKV(request.variables);
-    if (variables && variables.length > 0) {
-      httpSamplerProxy.put(new Arguments(name, variables));
+    if (request.variables) {
+      let variables = this.filterKV(request.variables);
+      if (variables && variables.length > 0) {
+        httpSamplerProxy.put(new Arguments(name, variables));
+      }
     }
   }
 
@@ -1248,13 +1279,6 @@ class JMXGenerator {
   }
 
   addScenarioHeaders(threadGroup, scenario) {
-    if (scenario.environment) {
-      let config = scenario.environment.config;
-      if (!(scenario.environment.config instanceof Object)) {
-        config = JSON.parse(scenario.environment.config);
-      }
-      this.addEnvironments(config.httpConfig.headers, scenario.headers)
-    }
     let headers = this.filterKV(scenario.headers);
     if (headers.length > 0) {
       let name = scenario.name + " Headers";
@@ -1262,7 +1286,14 @@ class JMXGenerator {
     }
   }
 
-  addRequestHeader(httpSamplerProxy, request) {
+  addRequestHeader(httpSamplerProxy, request, scenario) {
+    if (request.useEnvironment && scenario.environment) {
+      let config = scenario.environment.config;
+      if (!(scenario.environment.config instanceof Object)) {
+        config = JSON.parse(scenario.environment.config);
+      }
+      this.addEnvironments(config.httpConfig.headers, request.headers)
+    }
     let name = request.name + " Headers";
     this.addBodyFormat(request);
     let headers = this.filterKV(request.headers);
@@ -1339,15 +1370,18 @@ class JMXGenerator {
   }
 
   addContentType(request, type) {
+    let hasContentType = false;
     for (let index in request.headers) {
       if (request.headers.hasOwnProperty(index)) {
-        if (request.headers[index].name === 'Content-Type') {
-          request.headers.splice(index, 1);
+        if (request.headers[index].name === 'Content-Type' && request.headers[index].enable != false) {
+          hasContentType = true;
           break;
         }
       }
     }
-    request.headers.push(new KeyValue({name: 'Content-Type', value: type}));
+    if (!hasContentType) {
+      request.headers.push(new KeyValue({name: 'Content-Type', value: type}));
+    }
   }
 
   addRequestArguments(httpSamplerProxy, request) {
@@ -1363,8 +1397,10 @@ class JMXGenerator {
       body = this.filterKV(request.body.kvs);
       this.addRequestBodyFile(httpSamplerProxy, request, testId);
     } else {
-      httpSamplerProxy.boolProp('HTTPSampler.postBodyRaw', true);
-      body.push({name: '', value: request.body.raw, encode: false, enable: true});
+      if (request.body.raw) {
+        httpSamplerProxy.boolProp('HTTPSampler.postBodyRaw', true);
+        body.push({name: '', value: request.body.raw, encode: false, enable: true});
+      }
     }
 
     if (request.method !== 'GET') {
@@ -1381,6 +1417,7 @@ class JMXGenerator {
           let arg = {};
           arg.name = kv.name;
           arg.value = BODY_FILE_DIR + '/' + testId + '/' + file.id + '_' + file.name;
+          arg.contentType = kv.contentType;
           files.push(arg);
         });
       }
@@ -1402,6 +1439,12 @@ class JMXGenerator {
       })
     }
 
+    if (assertions.jsr223.length > 0) {
+      assertions.jsr223.filter(this.filter).forEach(item => {
+        httpSamplerProxy.put(this.getJSR223Assertion(item));
+      })
+    }
+
     if (assertions.duration.isValid()) {
       let name = "Response In Time: " + assertions.duration.value
       httpSamplerProxy.put(new DurationAssertion(name, assertions.duration.value));
@@ -1411,6 +1454,11 @@ class JMXGenerator {
   getJSONPathAssertion(jsonPath) {
     let name = jsonPath.description;
     return new JSONPathAssertion(name, jsonPath);
+  }
+
+  getJSR223Assertion(item) {
+    let name = item.desc;
+    return new JSR223Assertion(name, item);
   }
 
   getResponseAssertion(regex) {
