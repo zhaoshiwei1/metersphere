@@ -24,7 +24,9 @@ import org.springframework.scheduling.annotation.EnableScheduling;
 //@PropertySource(value = {"file:c:\\opt\\metersphere\\conf\\metersphere.properties"}, encoding = "UTF-8", ignoreResourceNotFound = true)
 @PropertySource(value = {"file:/opt/metersphere/conf/metersphere.properties"}, encoding = "UTF-8", ignoreResourceNotFound = true)
 public class Application {
-    public static void main(String[] args) {
+    public static void main(String[] args)
+    {
+        System.out.println("Testing-dev team from XQ");
         SpringApplication.run(Application.class, args);
     }
 }

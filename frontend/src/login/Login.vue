@@ -4,7 +4,7 @@
       <el-col :span="12">
         <el-form :model="form" :rules="rules" ref="form">
           <div class="logo">
-            <img :src="'/display/file/loginLogo'" style="width: 224px;height: 45px;" alt="">
+            <img :src="img_logo" style="width: 224px;height: 45px;" alt="">
           </div>
           <div class="title">
             <span id="s1">{{ loginTitle }}</span>
@@ -67,6 +67,7 @@ export default {
     };*/
     return {
       result: {},
+      img_logo: require('@/assets/logo-MeterSphere.png'),
       form: {
         username: '',
         password: '',
