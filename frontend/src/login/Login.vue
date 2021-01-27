@@ -69,7 +69,6 @@ export default {
       result: {},
       img_logo: require('@/assets/logo-MeterSphere.png'),
       img_info: require('@/assets/info.png'),
-      img_logo_light: require('@/assets/logo-light-MeterSphere.svg'),
       form: {
         username: '',
         password: '',

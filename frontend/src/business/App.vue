@@ -7,7 +7,7 @@
     </el-row>
     <el-row id="header-top" type="flex" justify="space-between" align="middle">
       <el-col :span="12">
-        <img :src="'/display/file/logo'" style="width: 156px;height: 37px;" alt="">
+        <img :src="img_logo_light" style="width: 156px;height: 37px;" alt="">
         <ms-top-menus/>
       </el-col>
 
@@ -40,6 +40,7 @@ export default {
   props: {},
   data() {
     return {
+      img_logo_light: require('@/assets/logo-light-MeterSphere.svg'),
       licenseHeader: null,
       auth: false,
       header: {},
